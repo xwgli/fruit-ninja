@@ -24,8 +24,18 @@ var log = function(){
         setTimeout( csl.clear.bind( csl ), time );
         time += add;
     };
-    return fn;
+	return fn;
 }();
+
+window.gameLoadingLog = function( text, isError ){
+    csl.log( text );
+    if( isError )
+        window.setTimeout( function(){ csl.log( text ); }, 3600 );
+};
+
+window.gameLoadingClear = function(){
+    csl.clear();
+};
 
 exports.start = function(){
 
@@ -86,4 +96,5 @@ if( !buzz.isSupported() )
 
 tip = tip.replace( "$", "" );
 
-Ucren.Element( "browser" ).html( tip );
+if( Ucren.Element( "browser" ) )
+    Ucren.Element( "browser" ).html( tip );

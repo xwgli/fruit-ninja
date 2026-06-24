@@ -5,10 +5,12 @@ html, body{
 	width: 100%;
 	height: 100%;
 	background: #484848;
+	overflow: hidden;
 }
 
 body{
 	position: relative;
+	margin: 0;
 }
 
 em{
@@ -21,9 +23,11 @@ em{
 	top: 50%;
 	width: 640px;
 	height: 480px;
-	margin: -280px auto auto -320px;
+	margin: 0;
 	text-align: left;
 	background: #fff;
+	transform: translate(-50%, -50%) scale(var(--game-scale, 1));
+	transform-origin: center center;
 }
 
 #view{
@@ -31,6 +35,39 @@ em{
 	background: transparent url(blank.gif) repeat 0 0;
 	cursor: default;
 	z-index: 20;
+}
+
+#pose-video{
+	display: none;
+}
+
+#pose-overlay{
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 640px;
+	height: 480px;
+	margin: 0;
+	pointer-events: none;
+	transform: translate(-50%, -50%) scale(var(--game-scale, 1));
+	transform-origin: center center;
+	z-index: 30;
+}
+
+#camera-select{
+	display: none;
+	position: absolute;
+	right: 12px;
+	bottom: 12px;
+	max-width: 220px;
+	height: 28px;
+	padding: 0 8px;
+	border: 1px solid rgba(255, 255, 255, .35);
+	border-radius: 4px;
+	background: rgba(0, 0, 0, .48);
+	color: #fff;
+	font-size: 13px;
+	z-index: 40;
 }
 
 #extra{
@@ -47,7 +84,7 @@ em{
 }
 
 #fork{
-	display: block;
+	display: none;
 	position: absolute;
 	right: 0;
 	top: 0;
@@ -59,6 +96,7 @@ em{
 }
 
 #desc{
+	display: none;
 	width: 100%;
 	position: absolute;
 	left: 0;

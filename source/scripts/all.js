@@ -121,21 +121,24 @@ define("scripts/control.js", function(exports){
 	var message = require("scripts/message");
 	var state = require("scripts/state");
 	
-	var canvasLeft, canvasTop;
+	var canvasLeft, canvasTop, canvasScale;
 	
 	canvasLeft = canvasTop = 0;
+	canvasScale = 1;
 	
 	exports.init = function(){
 		this.fixCanvasPos();
 		this.installDragger();
 		this.installClicker();
+		this.installFullscreenExit();
+		this.installPoseInput();
 	};
 	
 	exports.installDragger = function(){
 	    var dragger = new Ucren.BasicDrag({ type: "calc" });
 	
 	    dragger.on("returnValue", function( dx, dy, x, y, kf ){
-	    	if( kf = knife.through( x - canvasLeft, y - canvasTop ) )
+	    	if( kf = knife.through( (x - canvasLeft) / canvasScale, (y - canvasTop) / canvasScale ) )
 	            message.postMessage( kf, "slice" );
 	    });
 	
@@ -147,23 +150,116 @@ define("scripts/control.js", function(exports){
 	};
 	
 	exports.installClicker = function(){
-	    Ucren.addEvent(document, "click", function(){
+	    Ucren.addEvent(document, "click", function(e){
+	        if( isSideBlankClick( e ) ){
+	            requestFullscreen();
+	            return;
+	        }
+	
 	        if( state( "click-enable" ).ison() )
 	        	message.postMessage( "click" );
 	    });
 	};
 	
+	exports.installFullscreenExit = function(){
+	    Ucren.addEvent(document, "dblclick", function(e){
+	        if( isSideBlankClick( e ) && isFullscreen() )
+	            exitFullscreen();
+	    });
+	};
+	
+	exports.installPoseInput = function(){
+	    window.gamePoseInputStart = function(){
+	        knife.newKnife();
+	    };
+	
+	    window.gamePoseInputMove = function( x, y ){
+	        var kf = knife.through( (x - canvasLeft) / canvasScale, (y - canvasTop) / canvasScale );
+	        if( kf )
+	            message.postMessage( kf, "slice" );
+	    };
+	
+	    window.gamePoseInputEnd = function(){
+	        knife.newKnife();
+	    };
+	};
+	
 	exports.fixCanvasPos = function(){
-		var de = document.documentElement;
+		var de = document.documentElement, view = document.getElementById("view");
 	
 		var fix = function(e){
-		    canvasLeft = (de.clientWidth - 640) / 2;
-		    canvasTop = (de.clientHeight - 480) / 2 - 40;
+		    var rect;
+		    canvasScale = Math.min( de.clientWidth / 640, de.clientHeight / 480 );
+		    document.documentElement.style.setProperty( "--game-scale", canvasScale );
+		    rect = view.getBoundingClientRect();
+		    canvasLeft = rect.left;
+		    canvasTop = rect.top;
 		};
 	
 		fix();
 	
 		Ucren.addEvent(window, "resize", fix);
+	};
+	
+	function isSideBlankClick( e ){
+	    var view = document.getElementById("view"), rect, x;
+	
+	    if( !view )
+	        return false;
+	
+	    e = e || window.event;
+	    if( !e )
+	        return false;
+	
+	    if( isCameraSelectEvent( e ) )
+	        return false;
+	
+	    rect = view.getBoundingClientRect();
+	    x = e.clientX;
+	
+	    return x < rect.left || x > rect.right;
+	}
+	
+	function isCameraSelectEvent( e ){
+	    var select = document.getElementById("camera-select");
+	    var target = e.target || e.srcElement;
+	
+	    return !!( select && target && ( target == select || ( select.contains && select.contains( target ) ) ) );
+	}
+	
+	function requestFullscreen(){
+	    var doc = document, el = document.documentElement;
+	
+	    if( isFullscreen() )
+	        return;
+	
+	    if( el.requestFullscreen )
+	        el.requestFullscreen();
+	    else if( el.webkitRequestFullscreen )
+	        el.webkitRequestFullscreen();
+	    else if( el.mozRequestFullScreen )
+	        el.mozRequestFullScreen();
+	    else if( el.msRequestFullscreen )
+	        el.msRequestFullscreen();
+	}
+	
+	function exitFullscreen(){
+	    var doc = document;
+	
+	    if( doc.exitFullscreen )
+	        doc.exitFullscreen();
+	    else if( doc.webkitExitFullscreen )
+	        doc.webkitExitFullscreen();
+	    else if( doc.mozCancelFullScreen )
+	        doc.mozCancelFullScreen();
+	    else if( doc.msExitFullscreen )
+	        doc.msExitFullscreen();
+	}
+	
+	function isFullscreen(){
+	    var doc = document;
+	
+	    return !!( doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement );
 	};;
 
 	return exports;
@@ -411,8 +507,18 @@ define("scripts/main.js", function(exports){
 	        setTimeout( csl.clear.bind( csl ), time );
 	        time += add;
 	    };
-	    return fn;
+		return fn;
 	}();
+	
+	window.gameLoadingLog = function( text, isError ){
+	    csl.log( text );
+	    if( isError )
+	        window.setTimeout( function(){ csl.log( text ); }, 3600 );
+	};
+	
+	window.gameLoadingClear = function(){
+	    csl.clear();
+	};
 	
 	exports.start = function(){
 	
@@ -473,7 +579,8 @@ define("scripts/main.js", function(exports){
 	
 	tip = tip.replace( "$", "" );
 	
-	Ucren.Element( "browser" ).html( tip );;
+	if( Ucren.Element( "browser" ) )
+	    Ucren.Element( "browser" ).html( tip );;
 
 	return exports;
 });
@@ -571,7 +678,7 @@ define("scripts/sence.js", function(exports){
 	exports.init = function(){
 	    menuSnd = sound.create( "sound/menu" );
 	    gameStartSnd = sound.create( "sound/start" );
-		[ background, homeMask, logo, ninja, homeDesc, dojo, newSign, newGame, quit, score, lose, developing, gameOver, flash, fps ].invoke( "set" );
+	    [ background, homeMask, logo, ninja, homeDesc, dojo, newSign, newGame, quit, score, lose, developing, gameOver, flash, fps ].invoke( "set" );
 	    setInterval( fps.update.bind( fps ), 500 );
 	};
 	
